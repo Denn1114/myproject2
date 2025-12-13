@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Клієнти{% endblock %}
+{% block content %}
+<h1>Список клієнтів</h1>
+<a href="{{ url_for('admin_clients_add') }}">Додати клієнта</a>
+<table border="1" cellpadding="5">
+    <tr>
+        <th>ID</th>
+        <th>Ім'я</th>
+        <th>Email</th>
+        <th>Телефон</th>
+        <th>Адреса</th>
+        <th>Дії</th>
+    </tr>
+    {% for client in clients %}
+    <tr>
+        <td>{{ client.id }}</td>
+        <td>{{ client.name }}</td>
+        <td>{{ client.email }}</td>
+        <td>{{ client.phone }}</td>
+        <td>{{ client.address }}</td>
+        <td>
+            <a href="{{ url_for('admin_clients_edit', id=client.id) }}">Редагувати</a> |
+            <a href="{{ url_for('admin_clients_delete', id=client.id) }}">Видалити</a>
+        </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6">Клієнтів ще немає</td></tr>
+    {% endfor %}
+</table>
+{% endblock %}

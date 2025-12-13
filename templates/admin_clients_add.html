@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Додати клієнта{% endblock %}
+{% block content %}
+<h1>Додати клієнта</h1>
+<form method="post">
+    <label>Ім'я:<br><input type="text" name="name" required></label><br><br>
+    <label>Email:<br><input type="email" name="email" required></label><br><br>
+    <label>Телефон:<br><input type="text" name="phone"></label><br><br>
+    <label>Адреса:<br><input type="text" name="address"></label><br><br>
+    <button type="submit">Додати</button>
+</form>
+<a href="{{ url_for('admin_clients') }}">Назад до списку клієнтів</a>
+{% endblock %}
