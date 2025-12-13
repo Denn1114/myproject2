@@ -1,0 +1,102 @@
+{
+  "info": {
+    "name": "MyShop API",
+    "_postman_id": "12345678-90ab-cdef-1234-567890abcdef",
+    "description": "Колекція для тестування REST API магазину",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Get all clients",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://127.0.0.1:5000/api/clients",
+          "protocol": "http",
+          "host": ["127.0.0.1"],
+          "port": "5000",
+          "path": ["api","clients"]
+        }
+      }
+    },
+    {
+      "name": "Get client by ID",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://127.0.0.1:5000/api/clients/1",
+          "protocol": "http",
+          "host": ["127.0.0.1"],
+          "port": "5000",
+          "path": ["api","clients","1"]
+        }
+      }
+    },
+    {
+      "name": "Create client",
+      "request": {
+        "method": "POST",
+        "header": [{"key":"Content-Type","value":"application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Ivan\",\n  \"email\": \"ivan@mail.com\"\n}"
+        },
+        "url": {
+          "raw": "http://127.0.0.1:5000/api/clients",
+          "protocol": "http",
+          "host": ["127.0.0.1"],
+          "port": "5000",
+          "path": ["api","clients"]
+        }
+      }
+    },
+    {
+      "name": "Get all orders",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://127.0.0.1:5000/api/orders",
+          "protocol": "http",
+          "host": ["127.0.0.1"],
+          "port": "5000",
+          "path": ["api","orders"]
+        }
+      }
+    },
+    {
+      "name": "Get order by ID",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://127.0.0.1:5000/api/orders/1",
+          "protocol": "http",
+          "host": ["127.0.0.1"],
+          "port": "5000",
+          "path": ["api","orders","1"]
+        }
+      }
+    },
+    {
+      "name": "Create order",
+      "request": {
+        "method": "POST",
+        "header": [{"key":"Content-Type","value":"application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"client_id\": 1,\n  \"product\": \"Phone\"\n}"
+        },
+        "url": {
+          "raw": "http://127.0.0.1:5000/api/orders",
+          "protocol": "http",
+          "host": ["127.0.0.1"],
+          "port": "5000",
+          "path": ["api","orders"]
+        }
+      }
+    }
+  ]
+}
