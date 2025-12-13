@@ -2,20 +2,18 @@
 <html lang="uk">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Fan-Shop Барселони{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <title>Fan Shop Barça</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <header>
+        <h1>⚽ Fan Shop Barça</h1>
         <nav>
-          <a href="{{ url_for('home') }}">Головна</a> |
-          <a href="{{ url_for('about') }}">Про нас</a> |
-          <a href="{{ url_for('catalog') }}">Каталог</a> |
-          <a href="{{ url_for('contact') }}">Контакти</a> |
-          <a href="{{ url_for('feedback_list') }}">Відгуки</a>
-          <a href="{{ url_for('admin_clients') }}">Клієнти</a>
-       </nav>
+            <a href="{{ url_for('home') }}">Головна</a>
+            <a href="{{ url_for('about') }}">Про нас</a>
+            <a href="{{ url_for('shop') }}">Магазин</a>
+        </nav>
+        <hr>
     </header>
     <main>
         {% block content %}{% endblock %}

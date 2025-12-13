@@ -1,30 +1,13 @@
-body {
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 0;
-}
-header nav {
-    background-color: #003087;
-    padding: 10px;
-}
-header nav a {
-    color: white;
-    margin-right: 15px;
-    text-decoration: none;
-    font-weight: bold;
-}
-header nav a:hover {
-    text-decoration: underline;
-}
-main {
-    padding: 20px;
-}
-@media(max-width: 600px){
-    header nav {
-        display: flex;
-        flex-direction: column;
-    }
-    header nav a {
-        margin: 5px 0;
-    }
-}
+body { font-family: 'Arial', sans-serif; background: #F0F0F0; margin: 0; padding: 0; }
+header { background-color: #A50044; color: #FFC400; padding: 20px; text-align: center; }
+nav a { margin: 0 15px; color: #FFC400; text-decoration: none; font-weight: bold; }
+nav a:hover { text-decoration: underline; }
+.container { max-width: 800px; margin: 20px auto; padding: 20px; background: white; border-radius: 10px; }
+h2 { text-align: center; color: #A50044; }
+ul { list-style: none; padding: 0; }
+li { padding: 5px 0; border-bottom: 1px solid #ddd; }
+form { display: flex; flex-direction: column; gap: 10px; max-width: 400px; margin: auto; }
+input, button { padding: 10px; font-size: 16px; }
+button { background-color: #A50044; color: #FFC400; border: none; cursor: pointer; }
+button:hover { background-color: #800033; }
+.message { background-color: #d4edda; color: #155724; padding: 10px; border-radius: 5px; text-align: center; margin-bottom: 10px; }

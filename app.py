@@ -1,156 +1,101 @@
-from flask import Flask, render_template_string, request, redirect, url_for
+from flask import Flask, render_template, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
-from werkzeug.security import generate_password_hash, check_password_hash
+from flask_cors import CORS
+from flasgger import Swagger
+from marshmallow import Schema, fields, validate
+import os
 
 app = Flask(__name__)
-app.secret_key = "super-secret-key"
+CORS(app)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///shop.db'
+# ================== DB ==================
+db_path = os.path.join(os.path.dirname(__file__), "shop.db")
+app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{db_path}"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
-login_manager = LoginManager()
-login_manager.login_view = "login"
-login_manager.init_app(app)
+# ================== Swagger ==================
+swagger_config = {
+    "headers": [],
+    "specs": [{"endpoint": 'apispec', "route": '/apispec.json'}],
+    "static_url_path": "/flasgger_static",
+    "swagger_ui": True,
+    "specs_route": "/apidocs/"
+}
+Swagger(app, config=swagger_config)
 
-# --- Моделі ---
-class User(UserMixin, db.Model):
+# ================== Models ==================
+class Product(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(100), unique=True)
-    password_hash = db.Column(db.String(200))
+    name = db.Column(db.String(100), nullable=False)
+    price = db.Column(db.Float, nullable=False)
+    stock = db.Column(db.Integer, nullable=False)
 
-    def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
+    def to_dict(self):
+        return {"id": self.id, "name": self.name, "price": self.price, "stock": self.stock}
 
-    def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
+# ================== Schema ==================
+class ProductSchema(Schema):
+    name = fields.String(required=True, validate=validate.Length(min=1))
+    price = fields.Float(required=True)
+    stock = fields.Integer(required=True)
 
-class Order(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"))
-    item_name = db.Column(db.String(100))
+product_schema = ProductSchema()
 
-with app.app_context():
-    db.create_all()
+# ================== Error ==================
+@app.errorhandler(404)
+def not_found(e):
+    return jsonify({"error": "Resource not found"}), 404
 
-@login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(int(user_id))
+@app.errorhandler(500)
+def server_error(e):
+    return jsonify({"error": "Server error"}), 500
 
-# --- Шаблони як рядки (щоб нічого не пропало) ---
-home_template = '''
-<h1>Фан-шоп Барселони</h1>
-{% if current_user.is_authenticated %}
-<p>Ласкаво просимо, {{ current_user.username }}!</p>
-<a href="{{ url_for('catalog') }}">Каталог</a> | 
-<a href="{{ url_for('orders') }}">Мої замовлення</a> | 
-<a href="{{ url_for('logout') }}">Вийти</a>
-{% else %}
-<a href="{{ url_for('register') }}">Реєстрація</a> | 
-<a href="{{ url_for('login') }}">Логін</a>
-{% endif %}
-'''
+# ================== REST API ==================
+@app.route('/api/v1/products', methods=['GET'])
+def get_products():
+    products = Product.query.all()
+    return jsonify([p.to_dict() for p in products])
 
-catalog_template = '''
-<h2>Каталог товарів</h2>
-<ul>
-<li>Футболка Барселони</li>
-<li>Шарф Барселони</li>
-<li>Кепка Барселони</li>
-</ul>
-<a href="{{ url_for('home') }}">На головну</a>
-'''
+@app.route('/api/v1/products', methods=['POST'])
+def create_product():
+    errors = product_schema.validate(request.json)
+    if errors:
+        return jsonify(errors), 400
+    data = request.json
+    product = Product(name=data['name'], price=data['price'], stock=data['stock'])
+    db.session.add(product)
+    db.session.commit()
+    return jsonify(product.to_dict()), 201
 
-# --- Основні сторінки ---
+# ================== Web Pages ==================
 @app.route("/")
 def home():
-    return render_template_string(home_template)
+    return render_template("index.html")
 
-@app.route("/catalog")
-@login_required
-def catalog():
-    return render_template_string(catalog_template)
+@app.route("/about")
+def about():
+    return render_template("about.html")
 
-# --- Реєстрація ---
-@app.route("/register", methods=["GET", "POST"])
-def register():
+@app.route("/shop", methods=["GET", "POST"])
+def shop():
+    message = ""
     if request.method == "POST":
-        username = request.form["username"]
-        password = request.form["password"]
-        if User.query.filter_by(username=username).first():
-            return "Користувач вже існує"
-        user = User(username=username)
-        user.set_password(password)
-        db.session.add(user)
-        db.session.commit()
-        login_user(user)
-        return redirect(url_for("home"))
-    return '''
-        <h2>Реєстрація</h2>
-        <form method="post">
-        Логін: <input type="text" name="username"><br>
-        Пароль: <input type="password" name="password"><br>
-        <input type="submit" value="Зареєструватися">
-        </form>
-    '''
+        name = request.form.get("name")
+        price = float(request.form.get("price"))
+        stock = int(request.form.get("stock"))
+        data = {"name": name, "price": price, "stock": stock}
+        response = app.test_client().post("/api/v1/products", json=data)
+        if response.status_code == 201:
+            message = f"Продукт {name} додано успішно!"
+        else:
+            message = f"Помилка: {response.json}"
 
-# --- Логін ---
-@app.route("/login", methods=["GET", "POST"])
-def login():
-    if request.method == "POST":
-        username = request.form["username"]
-        password = request.form["password"]
-        user = User.query.filter_by(username=username).first()
-        if user and user.check_password(password):
-            login_user(user)
-            return redirect(url_for("home"))
-        return "Неправильний логін або пароль"
-    return '''
-        <h2>Логін</h2>
-        <form method="post">
-        Логін: <input type="text" name="username"><br>
-        Пароль: <input type="password" name="password"><br>
-        <input type="submit" value="Увійти">
-        </form>
-    '''
+    products = Product.query.all()
+    return render_template("shop.html", products=products, message=message)
 
-# --- Логаут ---
-@app.route("/logout")
-@login_required
-def logout():
-    logout_user()
-    return redirect(url_for("home"))
-
-# --- Мої замовлення ---
-@app.route("/orders")
-@login_required
-def orders():
-    orders = Order.query.filter_by(user_id=current_user.id).all()
-    orders_list = "<ul>"
-    for o in orders:
-        orders_list += f"<li>{o.item_name}</li>"
-    orders_list += "</ul>"
-    return f"<h2>Мої замовлення</h2>{orders_list}" \
-           f"<a href='/add_order'>Додати замовлення</a> | <a href='/logout'>Вийти</a>"
-
-# --- Додати замовлення ---
-@app.route("/add_order", methods=["GET", "POST"])
-@login_required
-def add_order():
-    if request.method == "POST":
-        item_name = request.form["item_name"]
-        order = Order(user_id=current_user.id, item_name=item_name)
-        db.session.add(order)
-        db.session.commit()
-        return redirect(url_for("orders"))
-    return '''
-        <h2>Додати замовлення</h2>
-        <form method="post">
-        Назва товару: <input type="text" name="item_name"><br>
-        <input type="submit" value="Додати">
-        </form>
-    '''
-
+# ================== Run ==================
 if __name__ == "__main__":
+    with app.app_context():
+        db.create_all()
     app.run(debug=True)
