@@ -1,0 +1,19 @@
+version: "3.9"
+
+services:
+  web:
+    build: .
+    container_name: flask_shop
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./data:/app/instance
+    environment:
+      - SQLITE_DB=instance/shop.db
+      - SECRET_KEY=super-secret-key
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:5000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

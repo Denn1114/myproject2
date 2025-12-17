@@ -16,7 +16,7 @@ with app.app_context():
 
     # Створюємо адміна
     if not User.query.filter_by(username="admin").first():
-        admin = User(username="admin", password=generate_password_hash("1234"), is_admin=True)
+        admin = User(username="admin", password=generate_password_hash("050909"), is_admin=True)
         db.session.add(admin)
 
     db.session.commit()
