@@ -1,127 +1,117 @@
-from flask import Flask, jsonify, request
-from flask_cors import CORS
-from flasgger import Swagger
-from models import db, Client, Order
-from marshmallow import Schema, fields, validate
+from flask import Blueprint, request, jsonify
+from werkzeug.security import generate_password_hash, check_password_hash
+from models import db, User, Feedback, Order, Client
 
-app = Flask(__name__)
-CORS(app)
+api = Blueprint("api", __name__, url_prefix="/api")
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///instance/shop.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-db.init_app(app)
-
-swagger_config = {
-    "headers": [],
-    "specs": [{"endpoint": 'apispec', "route": '/apispec.json'}],
-    "static_url_path": "/flasgger_static",
-    "swagger_ui": True,
-    "specs_route": "/apidocs/"
-}
-Swagger(app, config=swagger_config)
-
-# ================= Schemas =================
-class ClientSchema(Schema):
-    name = fields.String(required=True, validate=validate.Length(min=1))
-    email = fields.Email()
-
-class OrderSchema(Schema):
-    client_id = fields.Integer(required=True)
-    product = fields.String(required=True, validate=validate.Length(min=1))
-
-client_schema = ClientSchema()
-order_schema = OrderSchema()
-
-# ================= Error Handlers =================
-@app.errorhandler(404)
-def not_found(e):
-    return jsonify({"error": "Resource not found"}), 404
-
-@app.errorhandler(500)
-def server_error(e):
-    return jsonify({"error": "Server error"}), 500
-
-# ================= CLIENTS =================
-@app.route('/api/v1/clients', methods=['GET'])
-def get_clients_v1():
+# ===== AUTH =====
+@api.route("/register", methods=["POST"])
+def register():
     """
-    Get list of clients
+    Реєстрація користувача
     ---
-    responses:
-      200:
-        description: List of clients
-    """
-    clients = Client.query.all()
-    return jsonify([c.to_dict() for c in clients])
-
-@app.route('/api/v1/clients/<int:id>', methods=['GET'])
-def get_client_v1(id):
-    """
-    Get a client by ID
-    ---
-    parameters:
-      - name: id
-        in: path
-        type: integer
-        required: true
-    responses:
-      200: Client found
-      404: Client not found
-    """
-    client = Client.query.get(id)
-    if not client:
-        return jsonify({"error": "Client not found"}), 404
-    return jsonify(client.to_dict())
-
-@app.route('/api/v1/clients', methods=['POST'])
-def create_client_v1():
-    """
-    Create a new client
-    ---
+    tags:
+      - Auth
     parameters:
       - in: body
-        name: body
+        name: user
         required: true
-        schema: ClientSchema
+        schema:
+          type: object
+          properties:
+            username:
+              type: string
+            password:
+              type: string
     responses:
-      201: Client created
-      400: Validation errors
+      200:
+        description: Користувач зареєстрований
     """
-    errors = client_schema.validate(request.json)
-    if errors:
-        return jsonify(errors), 400
     data = request.json
-    client = Client(name=data['name'], email=data.get('email'))
-    db.session.add(client)
+    if User.query.filter_by(username=data["username"]).first():
+        return jsonify({"error": "User exists"}), 400
+    user = User(username=data["username"], password_hash=generate_password_hash(data["password"]))
+    db.session.add(user)
     db.session.commit()
-    return jsonify(client.to_dict()), 201
+    return jsonify({"message": "Registered successfully"})
 
-# ================= ORDERS =================
-@app.route('/api/v1/orders', methods=['GET'])
-def get_orders_v1():
-    """Get list of orders"""
-    orders = Order.query.all()
-    return jsonify([o.to_dict() for o in orders])
 
-@app.route('/api/v1/orders/<int:id>', methods=['GET'])
-def get_order_v1(id):
-    """Get an order by ID"""
-    order = Order.query.get(id)
-    if not order:
-        return jsonify({"error": "Order not found"}), 404
-    return jsonify(order.to_dict())
-
-@app.route('/api/v1/orders', methods=['POST'])
-def create_order_v1():
-    """Create a new order"""
-    errors = order_schema.validate(request.json)
-    if errors:
-        return jsonify(errors), 400
+@api.route("/login", methods=["POST"])
+def login():
+    """
+    Логін
+    ---
+    tags:
+      - Auth
+    """
     data = request.json
-    order = Order(client_id=data['client_id'], product=data['product'])
+    user = User.query.filter_by(username=data["username"]).first()
+    if user and check_password_hash(user.password_hash, data["password"]):
+        return jsonify({"message": "Login success"})
+    return jsonify({"error": "Invalid credentials"}), 401
+
+# ===== FEEDBACK =====
+@api.route("/feedback/list", methods=["GET"])
+def feedback_list():
+    """
+    Список відгуків
+    ---
+    tags:
+      - Feedback
+    """
+    feedbacks = Feedback.query.all()
+    return jsonify([{"id": f.id, "text": f.text} for f in feedbacks])
+
+@api.route("/feedback/add", methods=["POST"])
+def feedback_add():
+    """
+    Додати відгук
+    ---
+    tags:
+      - Feedback
+    """
+    data = request.json
+    feedback = Feedback(text=data["text"])
+    db.session.add(feedback)
+    db.session.commit()
+    return jsonify({"message": "Feedback added"})
+
+
+# ===== ORDERS =====
+@api.route("/orders/my", methods=["GET"])
+def my_orders():
+    """
+    Мої замовлення
+    ---
+    tags:
+      - Orders
+    """
+    orders = Order.query.all()
+    return jsonify([{"id": o.id, "description": o.description} for o in orders])
+
+@api.route("/orders/add", methods=["POST"])
+def order_add():
+    """
+    Додати замовлення
+    ---
+    tags:
+      - Orders
+    """
+    data = request.json
+    order = Order(description=data["description"])
     db.session.add(order)
     db.session.commit()
-    return jsonify(order.to_dict()), 201
+    return jsonify({"message": "Order added"})
 
-if __name__ == '__main__':
-    app.run(debug=True)
+
+# ===== CLIENTS (ADMIN) =====
+@api.route("/admin/clients", methods=["GET"])
+def admin_clients():
+    """
+    Клієнти (адмін)
+    ---
+    tags:
+      - Admin
+    """
+    clients = Client.query.all()
+    return jsonify([{"id": c.id, "name": c.name, "email": c.email, "phone": c.phone} for c in clients])

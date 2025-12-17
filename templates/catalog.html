@@ -1,10 +1,19 @@
 {% extends "base.html" %}
 {% block title %}Каталог{% endblock %}
 {% block content %}
-<h1>Каталог товарів</h1>
-<ul>
-    <li>Футболки Барселони</li>
-    <li>Шарфи та кепки</li>
-    <li>М’ячі та аксесуари</li>
-</ul>
+<h2>Каталог Барселона Фан Шоп</h2>
+<div class="row">
+    {% for product in products %}
+    <div class="col-md-4 mb-4">
+        <div class="card">
+            <img src="{{ url_for('static', filename='images/' ~ product.image) }}" class="card-img-top" alt="{{ product.name }}">
+            <div class="card-body">
+                <h5 class="card-title">{{ product.name }}</h5>
+                <p class="card-text">{{ product.price }} €</p>
+                <a href="{{ url_for('order_add_page') }}" class="btn btn-primary">Замовити</a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
 {% endblock %}

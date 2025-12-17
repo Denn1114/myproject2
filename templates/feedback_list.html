@@ -1,16 +1,14 @@
 {% extends "base.html" %}
 {% block title %}Відгуки{% endblock %}
 {% block content %}
-<h1>Відгуки користувачів</h1>
-<a href="{{ url_for('feedback_add') }}">Додати відгук</a>
-<ul>
+<h2>Відгуки</h2>
+{% if feedbacks %}
+  <ul class="list-group">
     {% for fb in feedbacks %}
-    <li>
-        <strong>{{ fb.name }}</strong> ({{ fb.date.strftime('%Y-%m-%d %H:%M') }}): {{ fb.message }}
-        <a href="{{ url_for('feedback_delete', id=fb.id) }}">[Видалити]</a>
-    </li>
-    {% else %}
-    <li>Відгуків ще немає</li>
+      <li class="list-group-item">{{ fb.text }}</li>
     {% endfor %}
-</ul>
+  </ul>
+{% else %}
+  <p>Відгуків немає.</p>
+{% endif %}
 {% endblock %}

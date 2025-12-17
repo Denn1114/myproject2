@@ -2,21 +2,59 @@
 <html lang="uk">
 <head>
     <meta charset="UTF-8">
-    <title>Fan Shop Barça</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Мій магазин{% endblock %}</title>
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
-    <header>
-        <h1>⚽ Fan Shop Barça</h1>
-        <nav>
-            <a href="{{ url_for('home') }}">Головна</a>
-            <a href="{{ url_for('about') }}">Про нас</a>
-            <a href="{{ url_for('shop') }}">Магазин</a>
-        </nav>
-        <hr>
-    </header>
-    <main>
-        {% block content %}{% endblock %}
-    </main>
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="{{ url_for('index') }}">Магазин</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('index') }}">Головна</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('catalog_page') }}">Каталог</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('my_orders_page') }}">Мої замовлення</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('order_add_page') }}">Додати замовлення</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('feedback_list_page') }}">Відгуки</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('feedback_add_page') }}">Додати відгук</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('about_page') }}">Про нас</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('contacts_page') }}">Контакти</a></li>
+      </ul>
+      <ul class="navbar-nav">
+        {% if session.get('user_id') %}
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('logout_page') }}">Вихід</a></li>
+        {% else %}
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('login_page') }}">Вхід</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('register_page') }}">Реєстрація</a></li>
+        {% endif %}
+        {% if current_user.is_authenticated and current_user.is_admin %}
+         <a href="/admin">Адмінка</a>
+        {% endif %}
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<div class="container mt-4">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+    
+    {% block content %}{% endblock %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

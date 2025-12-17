@@ -1,23 +1,30 @@
+from flask_login import UserMixin
 from flask_sqlalchemy import SQLAlchemy
 
 db = SQLAlchemy()
 
-class Client(db.Model):
-    __tablename__ = 'client'
-    __table_args__ = {'extend_existing': True}  # <-- ось це
+class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100))
-    email = db.Column(db.String(100))
-
-    def to_dict(self):
-        return {"id": self.id, "name": self.name, "email": self.email}
+    username = db.Column(db.String(100), unique=True, nullable=False)
+    password = db.Column(db.String(200), nullable=False)
+    is_admin = db.Column(db.Boolean, default=False)
+    
+class Feedback(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    text = db.Column(db.Text, nullable=False)
 
 class Order(db.Model):
-    __tablename__ = 'order'
-    __table_args__ = {'extend_existing': True}  # <-- теж додати
     id = db.Column(db.Integer, primary_key=True)
-    client_id = db.Column(db.Integer, db.ForeignKey('client.id'))
-    product = db.Column(db.String(100))
+    description = db.Column(db.Text, nullable=False)
 
-    def to_dict(self):
-        return {"id": self.id, "client_id": self.client_id, "product": self.product}
+class Client(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(100), nullable=False)
+    phone = db.Column(db.String(30), nullable=False)
+
+class Product(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    price = db.Column(db.Float, nullable=False)
+    image = db.Column(db.String(200), nullable=False)

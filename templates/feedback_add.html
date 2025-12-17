@@ -1,15 +1,12 @@
 {% extends "base.html" %}
 {% block title %}Додати відгук{% endblock %}
 {% block content %}
-<h1>Додати відгук</h1>
-<form method="post">
-    <label>Ваше ім'я:<br>
-        <input type="text" name="name" required>
-    </label><br><br>
-    <label>Відгук:<br>
-        <textarea name="message" required></textarea>
-    </label><br><br>
-    <button type="submit">Відправити</button>
+<h2>Додати відгук</h2>
+<form method="POST">
+  <div class="mb-3">
+    <label class="form-label">Текст відгуку</label>
+    <textarea name="text" class="form-control" required></textarea>
+  </div>
+  <button type="submit" class="btn btn-primary">Додати</button>
 </form>
-<a href="{{ url_for('feedback_list') }}">Назад до відгуків</a>
 {% endblock %}

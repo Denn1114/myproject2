@@ -1,101 +1,144 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_sqlalchemy import SQLAlchemy
-from flask_cors import CORS
+from werkzeug.security import generate_password_hash, check_password_hash
 from flasgger import Swagger
-from marshmallow import Schema, fields, validate
-import os
+from models import db, User, Feedback, Order, Client, Product
+from api import api  # ваш api.py
+from flask_login import current_user
+from functools import wraps
+from flask import abort
+
+def admin_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not current_user.is_authenticated or not current_user.is_admin:
+            abort(403)
+        return f(*args, **kwargs)
+    return decorated
+
 
 app = Flask(__name__)
-CORS(app)
 
-# ================== DB ==================
-db_path = os.path.join(os.path.dirname(__file__), "shop.db")
-app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{db_path}"
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-db = SQLAlchemy(app)
+# ================= CONFIG =================
+app.config["SECRET_KEY"] = "super-secret-key"
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///shop.db"
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-# ================== Swagger ==================
-swagger_config = {
-    "headers": [],
-    "specs": [{"endpoint": 'apispec', "route": '/apispec.json'}],
-    "static_url_path": "/flasgger_static",
-    "swagger_ui": True,
-    "specs_route": "/apidocs/"
-}
-Swagger(app, config=swagger_config)
+# ================= INIT =================
+db.init_app(app)
+app.register_blueprint(api)
+Swagger(app)
 
-# ================== Models ==================
-class Product(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    price = db.Column(db.Float, nullable=False)
-    stock = db.Column(db.Integer, nullable=False)
+# ================= CREATE DB =================
+with app.app_context():
+    db.create_all()
 
-    def to_dict(self):
-        return {"id": self.id, "name": self.name, "price": self.price, "stock": self.stock}
-
-# ================== Schema ==================
-class ProductSchema(Schema):
-    name = fields.String(required=True, validate=validate.Length(min=1))
-    price = fields.Float(required=True)
-    stock = fields.Integer(required=True)
-
-product_schema = ProductSchema()
-
-# ================== Error ==================
-@app.errorhandler(404)
-def not_found(e):
-    return jsonify({"error": "Resource not found"}), 404
-
-@app.errorhandler(500)
-def server_error(e):
-    return jsonify({"error": "Server error"}), 500
-
-# ================== REST API ==================
-@app.route('/api/v1/products', methods=['GET'])
-def get_products():
+# ================= ROUTES =================
+@app.route("/admin")
+@admin_required
+def admin_panel():
     products = Product.query.all()
-    return jsonify([p.to_dict() for p in products])
+    orders = Order.query.all()
+    feedbacks = Feedback.query.all()
+    users = User.query.all()
 
-@app.route('/api/v1/products', methods=['POST'])
-def create_product():
-    errors = product_schema.validate(request.json)
-    if errors:
-        return jsonify(errors), 400
-    data = request.json
-    product = Product(name=data['name'], price=data['price'], stock=data['stock'])
-    db.session.add(product)
-    db.session.commit()
-    return jsonify(product.to_dict()), 201
+    return render_template(
+        "admin.html",
+        products=products,
+        orders=orders,
+        feedbacks=feedbacks,
+        users=users
+    )
 
-# ================== Web Pages ==================
 @app.route("/")
-def home():
+def index():
     return render_template("index.html")
 
 @app.route("/about")
-def about():
+def about_page():
     return render_template("about.html")
 
-@app.route("/shop", methods=["GET", "POST"])
-def shop():
-    message = ""
-    if request.method == "POST":
-        name = request.form.get("name")
-        price = float(request.form.get("price"))
-        stock = int(request.form.get("stock"))
-        data = {"name": name, "price": price, "stock": stock}
-        response = app.test_client().post("/api/v1/products", json=data)
-        if response.status_code == 201:
-            message = f"Продукт {name} додано успішно!"
-        else:
-            message = f"Помилка: {response.json}"
+@app.route("/contacts")
+def contacts_page():
+    return render_template("contacts.html")
 
+# ================= CATALOG =================
+@app.route("/catalog")
+def catalog_page():
     products = Product.query.all()
-    return render_template("shop.html", products=products, message=message)
+    return render_template("catalog.html", products=products)
 
-# ================== Run ==================
+# ================= ORDERS =================
+@app.route("/my_orders")
+def my_orders_page():
+    orders = Order.query.all()
+    return render_template("my_orders.html", orders=orders)
+
+@app.route("/order/add", methods=["GET", "POST"])
+def order_add_page():
+    if request.method == "POST":
+        product_name = request.form.get("product_name")
+        quantity = request.form.get("quantity")
+        order = Order(description=f"{product_name} x {quantity}")
+        db.session.add(order)
+        db.session.commit()
+        flash("Замовлення додано!", "success")
+        return redirect(url_for("my_orders_page"))
+    return render_template("order_add.html")
+
+# ================= FEEDBACK =================
+@app.route("/feedback")
+def feedback_list_page():
+    feedbacks = Feedback.query.all()
+    return render_template("feedback_list.html", feedbacks=feedbacks)
+
+@app.route("/feedback/add", methods=["GET", "POST"])
+def feedback_add_page():
+    if request.method == "POST":
+        text = request.form.get("text")
+        feedback = Feedback(text=text)
+        db.session.add(feedback)
+        db.session.commit()
+        flash("Відгук додано!", "success")
+        return redirect(url_for("feedback_list_page"))
+    return render_template("feedback_add.html")
+
+# ================= AUTH =================
+@app.route("/register", methods=["GET", "POST"])
+def register_page():
+    if request.method == "POST":
+        username = request.form.get("username")
+        password = request.form.get("password")
+        if User.query.filter_by(username=username).first():
+            flash("Користувач вже існує", "danger")
+            return redirect(url_for("register_page"))
+        user = User(username=username, password_hash=generate_password_hash(password))
+        db.session.add(user)
+        db.session.commit()
+        flash("Реєстрація успішна!", "success")
+        return redirect(url_for("login_page"))
+    return render_template("register.html")
+
+@app.route("/login", methods=["GET", "POST"])
+def login_page():
+    if request.method == "POST":
+        username = request.form.get("username")
+        password = request.form.get("password")
+        user = User.query.filter_by(username=username).first()
+        if user and check_password_hash(user.password_hash, password):
+            session["user_id"] = user.id
+            flash("Вхід виконано", "success")
+            return redirect(url_for("index"))
+        else:
+            flash("Невірний логін або пароль", "danger")
+    return render_template("login.html")
+
+@app.route("/logout")
+def logout_page():
+    session.pop("user_id", None)
+    flash("Ви вийшли з акаунту", "info")
+    return redirect(url_for("login_page"))
+
+# ================= RUN =================
 if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()
     app.run(debug=True)

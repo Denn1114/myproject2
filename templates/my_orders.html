@@ -1,12 +1,14 @@
 {% extends "base.html" %}
+{% block title %}Мої замовлення{% endblock %}
 {% block content %}
-<h1>Мої замовлення</h1>
-<a href="{{ url_for('order_add') }}">Додати нове замовлення</a>
-<ul>
+<h2>Мої замовлення</h2>
+{% if orders %}
+  <ul class="list-group">
     {% for order in orders %}
-    <li>Замовлення #{{ order.id }} - {{ order.status }} - {{ order.date.strftime('%Y-%m-%d') }}</li>
-    {% else %}
-    <li>У вас ще немає замовлень</li>
+      <li class="list-group-item">{{ order.description }}</li>
     {% endfor %}
-</ul>
+  </ul>
+{% else %}
+  <p>Замовлень немає.</p>
+{% endif %}
 {% endblock %}
