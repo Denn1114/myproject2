@@ -2,6 +2,17 @@
 {% block title %}Вхід{% endblock %}
 {% block content %}
 <h2>Вхід</h2>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <ul>
+      {% for category, message in messages %}
+        <li class="text-{{ 'danger' if category=='danger' else 'success' }}">{{ message }}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+{% endwith %}
+
 <form method="POST">
   <div class="mb-3">
     <label class="form-label">Логін</label>
@@ -13,4 +24,5 @@
   </div>
   <button type="submit" class="btn btn-primary">Увійти</button>
 </form>
+<p>Немає акаунту? <a href="{{ url_for('register_page') }}">Зареєструватися</a></p>
 {% endblock %}

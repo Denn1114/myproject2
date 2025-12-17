@@ -1,34 +1,67 @@
 {% extends "base.html" %}
-{% block content %}
+{% block title %}Адмінка{% endblock %}
 
-<h1>Адмін-панель</h1>
+{% block content %}
+<h1>Адмін панель</h1>
 
 <h2>Користувачі</h2>
-<ul>
-  {% for user in users %}
-    <li>{{ user.username }} {% if user.is_admin %}(admin){% endif %}</li>
-  {% endfor %}
-</ul>
-
-<h2>Товари</h2>
-<ul>
-  {% for product in products %}
-    <li>{{ product.name }} – {{ product.price }}</li>
-  {% endfor %}
-</ul>
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Логін</th>
+            <th>Адмін</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for user in users %}
+        <tr>
+            <td>{{ user.id }}</td>
+            <td>{{ user.username }}</td>
+            <td>{{ "Так" if user.is_admin else "Ні" }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
 
 <h2>Замовлення</h2>
-<ul>
-  {% for order in orders %}
-    <li>Order #{{ order.id }}</li>
-  {% endfor %}
-</ul>
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Опис</th>
+            <th>Дата</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for order in orders %}
+        <tr>
+            <td>{{ order.id }}</td>
+            <td>{{ order.description }}</td>
+            <td>{{ order.date_created }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
 
 <h2>Відгуки</h2>
-<ul>
-  {% for f in feedbacks %}
-    <li>{{ f.text }}</li>
-  {% endfor %}
-</ul>
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Текст</th>
+            <th>Дата</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for fb in feedbacks %}
+        <tr>
+            <td>{{ fb.id }}</td>
+            <td>{{ fb.text }}</td>
+            <td>{{ fb.date_created }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
 
 {% endblock %}

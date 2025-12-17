@@ -2,15 +2,28 @@
 {% block title %}Додати замовлення{% endblock %}
 {% block content %}
 <h2>Додати замовлення</h2>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <ul>
+      {% for category, message in messages %}
+        <li class="text-{{ 'danger' if category=='danger' else 'success' }}">{{ message }}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+{% endwith %}
+
 <form method="POST">
   <div class="mb-3">
-    <label class="form-label">Назва продукту</label>
+    <label class="form-label">Назва товару</label>
     <input type="text" name="product_name" class="form-control" required>
   </div>
   <div class="mb-3">
     <label class="form-label">Кількість</label>
-    <input type="number" name="quantity" class="form-control" required>
+    <input type="number" name="quantity" class="form-control" min="1" value="1" required>
   </div>
-  <button type="submit" class="btn btn-primary">Додати</button>
+  <button type="submit" class="btn btn-primary">Додати замовлення</button>
 </form>
+
+<a href="{{ url_for('my_orders_page') }}" class="btn btn-secondary mt-3">Повернутися до моїх замовлень</a>
 {% endblock %}

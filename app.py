@@ -4,21 +4,27 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flasgger import Swagger
 from models import db, User, Feedback, Order, Client, Product
 from api import api  # ваш api.py
-from flask_login import current_user
 from functools import wraps
-from flask import abort
+from flask_login import LoginManager, current_user, login_user, logout_user, login_required
+from flask import redirect, url_for, flash
 
 def admin_required(f):
     @wraps(f)
-    def decorated(*args, **kwargs):
+    def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated or not current_user.is_admin:
-            abort(403)
+            flash("Доступ заборонено!")
+            return redirect(url_for("login.html"))
         return f(*args, **kwargs)
-    return decorated
-
-
+    return decorated_function
 app = Flask(__name__)
 
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login_page' 
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
 # ================= CONFIG =================
 app.config["SECRET_KEY"] = "super-secret-key"
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///shop.db"
@@ -33,22 +39,38 @@ Swagger(app)
 with app.app_context():
     db.create_all()
 
+
 # ================= ROUTES =================
+
+
+
+
 @app.route("/admin")
-@admin_required
+@login_required
 def admin_panel():
-    products = Product.query.all()
+    if not current_user.is_admin:
+        flash("Доступ заборонено!")
+        return redirect(url_for("index"))
+    
+    users = User.query.all()
     orders = Order.query.all()
     feedbacks = Feedback.query.all()
-    users = User.query.all()
-
+    
     return render_template(
         "admin.html",
-        products=products,
+        users=users,
         orders=orders,
-        feedbacks=feedbacks,
-        users=users
+        feedbacks=feedbacks
     )
+
+
+@app.route("/admin/clients")
+@admin_required
+def admin_clients():
+    # приклад: отримати всіх користувачів
+    from models import User
+    users = User.query.all()
+    return render_template("admin_clients.html", users=users)
 
 @app.route("/")
 def index():
@@ -112,7 +134,7 @@ def register_page():
         if User.query.filter_by(username=username).first():
             flash("Користувач вже існує", "danger")
             return redirect(url_for("register_page"))
-        user = User(username=username, password_hash=generate_password_hash(password))
+        user = User(username=username, password=generate_password_hash(password))
         db.session.add(user)
         db.session.commit()
         flash("Реєстрація успішна!", "success")
@@ -122,15 +144,18 @@ def register_page():
 @app.route("/login", methods=["GET", "POST"])
 def login_page():
     if request.method == "POST":
-        username = request.form.get("username")
-        password = request.form.get("password")
+        username = request.form["username"]
+        password = request.form["password"]
+
         user = User.query.filter_by(username=username).first()
-        if user and check_password_hash(user.password_hash, password):
-            session["user_id"] = user.id
-            flash("Вхід виконано", "success")
+        if user and check_password_hash(user.password, password):
+            login_user(user)
+            flash("Успішний вхід!", "success")
             return redirect(url_for("index"))
         else:
             flash("Невірний логін або пароль", "danger")
+            return redirect(url_for("login_page"))
+
     return render_template("login.html")
 
 @app.route("/logout")
