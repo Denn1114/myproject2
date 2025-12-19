@@ -72,6 +72,9 @@ def admin_clients():
     users = User.query.all()
     return render_template("admin_clients.html", users=users)
 
+
+
+
 @app.route("/")
 def index():
     return render_template("index.html")
