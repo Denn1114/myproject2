@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2>Адмін — Товари</h2>
+
+<form method="POST" enctype="multipart/form-data">
+  <input name="name" placeholder="Назва" required>
+  <input name="price" type="number" step="0.01" required>
+  <input name="quantity" type="number" required>
+  <input type="file" name="image" required>
+  <button>Додати</button>
+</form>
+
+<hr>
+
+<ul>
+{% for p in products %}
+  <li>
+    {{ p.name }} — {{ p.price }} грн ({{ p.quantity }} шт)
+    <a href="{{ url_for('admin_delete_product', product_id=p.id) }}">❌</a>
+  </li>
+{% endfor %}
+</ul>
+
+{% endblock %}

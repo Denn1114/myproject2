@@ -1,13 +1,16 @@
+import os
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from flasgger import Swagger
-from models import db, User, Feedback, Order, Client, Product
-from api import api  # ваш api.py
+from models import CartItem, db, User, Feedback, Order, Client, Product
+from api import api 
 from functools import wraps
 from flask_login import LoginManager, current_user, login_user, logout_user, login_required
 from flask import redirect, url_for, flash
+from werkzeug.utils import secure_filename
 
+UPLOAD_FOLDER = "static/uploads"
 def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -29,7 +32,7 @@ def load_user(user_id):
 app.config["SECRET_KEY"] = "super-secret-key"
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///shop.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 # ================= INIT =================
 db.init_app(app)
 app.register_blueprint(api)
@@ -38,11 +41,42 @@ Swagger(app)
 # ================= CREATE DB =================
 with app.app_context():
     db.create_all()
-
+with app.app_context():
+    if not User.query.filter_by(username="admin").first():
+        admin_user = User(
+            username="admin",
+            password=generate_password_hash("050909"),
+            is_admin=True 
+        )
+        db.session.add(admin_user)
+        db.session.commit()
 
 # ================= ROUTES =================
 
+@app.route("/admin/products/add", methods=["GET", "POST"])
+@login_required
+def admin_product_add():
+    if not current_user.is_admin:
+        flash("Доступ заборонено")
+        return redirect(url_for("index"))
 
+    if request.method == "POST":
+        name = request.form.get("name")
+        price = request.form.get("price")
+        description = request.form.get("description")
+
+        product = Product(
+            name=name,
+            price=float(price),
+            description=description
+        )
+        db.session.add(product)
+        db.session.commit()
+
+        flash("Товар додано!", "success")
+        return redirect(url_for("catalog_page"))
+
+    return render_template("admin_product_add.html")
 
 
 @app.route("/admin")
@@ -66,8 +100,7 @@ def admin_panel():
 
 @app.route("/admin/clients")
 @admin_required
-def admin_clients():
-    # приклад: отримати всіх користувачів
+def admin_client():
     from models import User
     users = User.query.all()
     return render_template("admin_clients.html", users=users)
@@ -89,9 +122,106 @@ def contacts_page():
 
 # ================= CATALOG =================
 @app.route("/catalog")
+@login_required
 def catalog_page():
     products = Product.query.all()
     return render_template("catalog.html", products=products)
+
+@app.route("/admin/products", methods=["GET", "POST"])
+@admin_required
+def admin_products():
+    if request.method == "POST":
+        name = request.form["name"]
+        price = float(request.form["price"])
+        quantity = int(request.form["quantity"])
+        image_file = request.files["image"]
+
+        filename = secure_filename(image_file.filename)
+        image_file.save(os.path.join(app.config["UPLOAD_FOLDER"], filename))
+
+        product = Product(
+            name=name,
+            price=price,
+            quantity=quantity,
+            image=filename
+        )
+        db.session.add(product)
+        db.session.commit()
+        flash("Товар додано", "success")
+
+    products = Product.query.all()
+    return render_template("admin_products.html", products=products)
+
+@app.route("/admin/products/delete/<int:product_id>")
+@admin_required
+def admin_delete_product(product_id):
+    product = Product.query.get_or_404(product_id)
+    db.session.delete(product)
+    db.session.commit()
+    flash("Товар видалено", "info")
+    return redirect(url_for("admin_products"))
+
+from werkzeug.utils import secure_filename
+import os
+
+UPLOAD_FOLDER = 'static/uploads'  # директорія для фото
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+@app.route("/admin/products/add", methods=["GET", "POST"])
+@login_required
+@admin_required
+def admin_product_add_new():  # <-- змінили ім'я
+    if request.method == "POST":
+        name = request.form.get("name")
+        price = float(request.form.get("price"))
+        quantity = int(request.form.get("quantity", 0))
+
+        file = request.files.get("image")
+        image_path = None
+        if file and file.filename != "":
+            image_path = f"static/images/{file.filename}"
+            file.save(image_path)
+
+        product = Product(
+            name=name,
+            price=price,
+            quantity=quantity,
+            image=image_path
+        )
+        db.session.add(product)
+        db.session.commit()
+        flash("Товар додано!", "success")
+        return redirect(url_for("admin_panel"))
+
+    return render_template("admin_product_add.html")
+
+
+
+@app.route("/cart")
+@login_required
+def cart_page():
+    items = CartItem.query.filter_by(user_id=current_user.id).all()
+    total = sum(i.product.price * i.quantity for i in items)
+    return render_template("cart.html", items=items, total=total)\
+    
+@app.route("/cart/add/<int:product_id>")
+@login_required
+def add_to_cart(product_id):
+    product = Product.query.get_or_404(product_id)
+
+    # Перевіримо, чи користувач вже має кошик (імітований)
+    if not hasattr(current_user, "cart"):
+        current_user.cart = []
+
+    current_user.cart.append({
+        "product_id": product.id,
+        "name": product.name,
+        "price": product.price,
+        "quantity": 1
+    })
+    flash(f"Товар {product.name} додано в кошик", "success")
+    return redirect(url_for("catalog_page"))
 
 # ================= ORDERS =================
 @app.route("/my_orders")
@@ -99,18 +229,50 @@ def my_orders_page():
     orders = Order.query.all()
     return render_template("my_orders.html", orders=orders)
 
-@app.route("/order/add", methods=["GET", "POST"])
-def order_add_page():
-    if request.method == "POST":
-        product_name = request.form.get("product_name")
-        quantity = request.form.get("quantity")
-        order = Order(description=f"{product_name} x {quantity}")
-        db.session.add(order)
-        db.session.commit()
-        flash("Замовлення додано!", "success")
-        return redirect(url_for("my_orders_page"))
-    return render_template("order_add.html")
+@app.route("/order/add/<int:product_id>", methods=["POST"])
+def order_add_from_catalog(product_id):
+    product = Product.query.get_or_404(product_id)
 
+    order = Order(
+        description=f"{product.name} - {product.price} грн"
+    )
+
+    db.session.add(order)
+    db.session.commit()
+
+    flash("Товар додано в кошик!", "success")
+    return redirect(url_for("my_orders_page"))
+
+@app.route("/checkout")
+@login_required
+def checkout():
+    items = CartItem.query.filter_by(user_id=current_user.id).all()
+    total = sum(i.product.price * i.quantity for i in items)
+
+    order = Order(user_id=current_user.id, total_price=total)
+    db.session.add(order)
+
+    CartItem.query.filter_by(user_id=current_user.id).delete()
+    db.session.commit()
+
+    flash("Замовлення оформлено!", "success")
+    return redirect(url_for("index"))
+
+@app.route("/admin/orders")
+@admin_required
+def admin_orders():
+    orders = Order.query.all()
+    return render_template("admin_orders.html", orders=orders)
+
+
+@app.route("/admin/orders/delete/<int:order_id>")
+@admin_required
+def admin_delete_order(order_id):
+    order = Order.query.get_or_404(order_id)
+    db.session.delete(order)
+    db.session.commit()
+    flash("Замовлення видалено", "info")
+    return redirect(url_for("admin_orders"))
 # ================= FEEDBACK =================
 @app.route("/feedback")
 def feedback_list_page():

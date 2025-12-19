@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2>Кошик</h2>
+
+<ul>
+{% for i in items %}
+  <li>{{ i.product.name }} x {{ i.quantity }} = {{ i.product.price * i.quantity }}</li>
+{% endfor %}
+</ul>
+
+<h3>Разом: {{ total }} грн</h3>
+
+<a href="{{ url_for('checkout') }}">Оформити замовлення</a>
+
+{% endblock %}
